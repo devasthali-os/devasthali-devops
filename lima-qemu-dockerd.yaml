@@ -7,6 +7,14 @@
 # $ docker ...
 
 # This example requires Lima v0.8.0 or later
+
+# Use QEMU as the VM backend (works across architectures, incl. x86_64 emulation on Apple Silicon).
+vmType: "qemu"
+
+# 9p (virtio-9p) is QEMU's default file-sharing transport. Setting it explicitly triggers a
+# harmless `WARN ... mountType: 9p is experimental` from Lima; the mount still works.
+mountType: "9p"
+
 images:
 # Ubuntu 24.04 LTS (Noble Numbat) — current stable LTS, supported until 2029 (ESM to 2036).
 # Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
@@ -75,7 +83,13 @@ hostResolver:
   # resolve inside containers, and not just inside the VM itself.
   hosts:
     host.docker.internal: host.lima.internal
+# portForwards maps guest endpoints to the host. Here we forward a unix socket (not a TCP port)
+# so the host's docker CLI can talk to the in-VM rootless dockerd over a local socket file.
 portForwards:
+# guestSocket: the rootless dockerd socket inside the VM. {{.UID}} expands to the Lima user's UID,
+#   matching the rootless path /run/user/<uid>/docker.sock created by dockerd-rootless-setuptool.
+# hostSocket: where that socket is exposed on the host. {{.Dir}} is this instance's data dir, so the
+#   socket lands at <instanceDir>/sock/docker.sock — the path referenced by DOCKER_HOST / the message below.
 - guestSocket: "/run/user/{{.UID}}/docker.sock"
   hostSocket: "{{.Dir}}/sock/docker.sock"
 message: |
