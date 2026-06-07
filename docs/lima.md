@@ -1,7 +1,7 @@
-# Lima + QEMU: A Principal Engineer's Reference
+# LiMa + QEMU: A Principal Engineer's Reference
 
-This document is the in-depth companion to `docker-lima.yaml` in this repo. It explains
-*how Lima and QEMU actually work under the hood*, the tradeoffs that matter at scale, and
+This document is the in-depth companion to `lima-qemu-dockerd.yaml` in this repo. It explains
+*how LiMa and QEMU actually work under the hood*, the tradeoffs that matter at scale, and
 the operational/security reasoning a principal-level engineer is expected to articulate in
 design reviews. It is deliberately opinionated about *why*, not just *what*.
 
@@ -12,7 +12,7 @@ design reviews. It is deliberately opinionated about *why*, not just *what*.
 ```bash
 limactl ls
 NAME           STATUS     SSH                VMTYPE    ARCH      CPUS    MEMORY    DISK      DIR
-docker-lima    Running    127.0.0.1:61221    qemu      x86_64    4       4GiB      100GiB    ~/.lima/docker-lima
+lima-qemu-dockerd    Running    127.0.0.1:61221    qemu      x86_64    4       4GiB      100GiB    ~/.lima/lima-qemu-dockerd
 ```
 
 What each column is really telling you:
@@ -23,7 +23,7 @@ What each column is really telling you:
 | `ARCH = x86_64` | The *guest* architecture. If your host is Apple Silicon (aarch64), this row means **full CPU emulation via TCG**, which is 5–20x slower than native. On an Intel host it is hardware-accelerated. This single field is the most common silent performance killer. |
 | `SSH = 127.0.0.1:61221` | Lima exposes the guest only on loopback via a forwarded SSH port. All control-plane traffic (provisioning, `limactl shell`, file sync triggers) rides this channel. |
 | `DISK = 100GiB` | A *sparse* qcow2 image — it does not consume 100 GiB until written. |
-| `DIR = ~/.lima/docker-lima` | The instance home: config, disk images, logs, serial console, and the forwarded `docker.sock` all live here. This is the first place you look when debugging. |
+| `DIR = ~/.lima/lima-qemu-dockerd` | The instance home: config, disk images, logs, serial console, and the forwarded `docker.sock` all live here. This is the first place you look when debugging. |
 
 > Decode the host/guest arch mismatch immediately: `limactl ls` shows guest arch; `uname -m`
 > shows host arch. If they differ and `VMTYPE=qemu`, you are emulating, not virtualizing.
@@ -59,7 +59,7 @@ macOS+Apple-Silicon era.
 ### Why it exists
 Docker Desktop is a proprietary product with licensing costs for large orgs. Lima (Apache-2.0)
 + rootless Docker/containerd is the canonical OSS replacement, which is exactly what
-`docker-lima.yaml` implements: a Linux VM running **rootless dockerd**, with the Docker socket
+`lima-qemu-dockerd.yaml` implements: a Linux VM running **rootless dockerd**, with the Docker socket
 forwarded back to the macOS host.
 
 ---
@@ -119,7 +119,7 @@ arm64 hosts.
 
 ## 2.5 CPU architectures (x86_64 vs aarch64)
 
-The `arch:` field in `docker-lima.yaml` picks an ISA — **x86_64** (`amd64`) or **aarch64**
+The `arch:` field in `lima-qemu-dockerd.yaml` picks an ISA — **x86_64** (`amd64`) or **aarch64**
 (`arm64`). They are not binary-compatible, which is why the repo ships both cloud images and
 why the §2 performance cliff exists. For Lima specifically:
 
@@ -136,12 +136,12 @@ lives in [`cpu-architectures.md`](./cpu-architectures.md).
 ## 3. Lifecycle & the control plane
 
 ```bash
-limactl start ./docker-lima.yaml      # create + boot (runs cloud-init + provision)
-limactl shell docker-lima             # SSH into the guest
-limactl stop docker-lima              # graceful ACPI shutdown
-limactl delete docker-lima            # destroy disk + state
-limactl edit docker-lima              # change YAML; some keys need a restart
-limactl factory-reset docker-lima     # wipe back to first-boot
+limactl start ./lima-qemu-dockerd.yaml      # create + boot (runs cloud-init + provision)
+limactl shell lima-qemu-dockerd             # SSH into the guest
+limactl stop lima-qemu-dockerd              # graceful ACPI shutdown
+limactl delete lima-qemu-dockerd            # destroy disk + state
+limactl edit lima-qemu-dockerd              # change YAML; some keys need a restart
+limactl factory-reset lima-qemu-dockerd     # wipe back to first-boot
 ```
 
 This repo ships a thin wrapper, [`devasthali.sh`](../devasthali.sh), so you don't have to
@@ -166,12 +166,12 @@ What `limactl start` actually does, in order:
 4. Waits on **`probes:`** to declare the guest ready (here: docker installed + rootlesskit running).
 5. Establishes port forwards, including the **`docker.sock` Unix-socket forward** over SSH.
 
-Key directories inside `~/.lima/docker-lima/`:
+Key directories inside `~/.lima/lima-qemu-dockerd/`:
 - `lima.yaml` — the *materialized* config (your file + defaults). Read this, not just your source YAML.
 - `qcow2` disk image(s).
 - `serial*.log` — guest console; first stop for boot/kernel failures.
 - `ha.stderr.log` / `ha.stdout.log` — the host-agent (forwarding, monitoring) logs.
-- `sock/docker.sock` — the forwarded socket referenced by `docker-lima.yaml`.
+- `sock/docker.sock` — the forwarded socket referenced by `lima-qemu-dockerd.yaml`.
 
 ---
 
@@ -184,7 +184,7 @@ through explicit forwards. That constraint shapes the whole config:
 - **`portForwards:`** maps a guest socket/port to the host. This repo forwards the rootless
   dockerd Unix socket:
 
-```77:79:docker-lima.yaml
+```77:79:lima-qemu-dockerd.yaml
 portForwards:
 - guestSocket: "/run/user/{{.UID}}/docker.sock"
   hostSocket: "{{.Dir}}/sock/docker.sock"
@@ -196,7 +196,7 @@ portForwards:
   host at `host.docker.internal`. Inside the VM that host is `host.lima.internal`, so the
   config aliases them at two layers:
 
-```72:76:docker-lima.yaml
+```72:76:lima-qemu-dockerd.yaml
 hostResolver:
   hosts:
     host.docker.internal: host.lima.internal
@@ -215,7 +215,7 @@ VM to look like a real host on the LAN.
 
 ## 5. Filesystem sharing — the second big performance lever
 
-```25:28:docker-lima.yaml
+```25:28:lima-qemu-dockerd.yaml
 mounts:
 - location: "~"
 - location: "/tmp/lima"
@@ -252,7 +252,7 @@ The guest is configured declaratively in three phases, each idempotent on purpos
   exists *and* `rootlesskit` is running. Probes are how you make "ready" deterministic instead
   of racy.
 
-```59:71:docker-lima.yaml
+```59:71:lima-qemu-dockerd.yaml
 probes:
 - script: |
     #!/bin/bash
@@ -296,20 +296,19 @@ The config deliberately runs **rootless dockerd** (disables the rootful daemon, 
 
 | Symptom | First moves |
 |---------|-------------|
-| Won't boot / hangs at start | `tail -f ~/.lima/docker-lima/serial*.log`; check cloud-init in guest at `/var/log/cloud-init-output.log`. |
+| Won't boot / hangs at start | `tail -f ~/.lima/lima-qemu-dockerd/serial*.log`; check cloud-init in guest at `/var/log/cloud-init-output.log`. |
 | Everything is slow | Confirm `limactl ls` guest arch == host `uname -m`; if mismatched you're in TCG emulation. Then check mount transport (9p vs virtiofs). |
-| `docker` on host can't connect | Verify `~/.lima/docker-lima/sock/docker.sock` exists; check the `docker context`; inspect `ha.stderr.log` for forward errors. |
+| `docker` on host can't connect | Verify `~/.lima/lima-qemu-dockerd/sock/docker.sock` exists; check the `docker context`; inspect `ha.stderr.log` for forward errors. |
 | Provisioning failed | Re-run is idempotent; read `cloud-init-output.log`; probes print which gate failed. |
 | Disk filling host | qcow2 is sparse but grows; `docker system prune`, or recreate the instance. |
 | Image cache stale / wrong digest | `limactl prune` then `limactl start`. |
-| Need to inspect generated config | Read `~/.lima/docker-lima/lima.yaml` (materialized), not just the source YAML. |
-
+| Need to inspect generated config | Read `~/.lima/lima-qemu-dockerd/lima.yaml` (materialized), not just the source YAML. |
 Useful one-liners:
 ```bash
-limactl shell docker-lima -- systemctl --user status docker   # rootless daemon health
-limactl shell docker-lima -- journalctl --user -u docker      # daemon logs
-limactl shell docker-lima -- free -m && nproc                 # resources as the guest sees them
-export DOCKER_HOST=$(limactl list docker-lima --format 'unix://{{.Dir}}/sock/docker.sock')
+limactl shell lima-qemu-dockerd -- systemctl --user status docker   # rootless daemon health
+limactl shell lima-qemu-dockerd -- journalctl --user -u docker      # daemon logs
+limactl shell lima-qemu-dockerd -- free -m && nproc                 # resources as the guest sees them
+export DOCKER_HOST=$(limactl list lima-qemu-dockerd --format 'unix://{{.Dir}}/sock/docker.sock')
 ```
 
 ---

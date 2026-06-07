@@ -1,7 +1,7 @@
 # CPU Architectures: x86_64 vs aarch64 (with an LLM lens)
 
 Cross-cutting reference for the two Instruction Set Architectures (ISAs) this repo targets.
-Referenced from [`lima.md`](./lima.md) (the `arch:` field in `docker-lima.yaml`), but the
+Referenced from [`lima.md`](./lima.md) (the `arch:` field in `lima-vz-dockerd.yaml`), but the
 material applies anywhere we pick an arch: container images, CI runners, cloud instance types,
 and model-inference placement.
 
