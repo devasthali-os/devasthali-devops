@@ -1,6 +1,6 @@
 # Example to use Docker instead of containerd & nerdctl
-# $ limactl start ./docker-lima.yaml
-# $ limactl shell docker docker run -it -v $HOME:$HOME --rm alpine
+# $ limactl start ./lima-qemu-dockerd.yaml
+# $ limactl shell lima-qemu-dockerd docker run -it -v $HOME:$HOME --rm alpine
 
 # To run `docker` on the host (assumes docker-cli is installed):
 # $ export DOCKER_HOST=$(limactl list docker --format 'unix://{{.Dir}}/sock/docker.sock')

@@ -77,3 +77,8 @@ This is where the arch choice stops being academic for an AI-heavy org:
 > explicit, deliberate cost (reproducing prod, building multi-arch). For LLM work, do
 > accelerator-bound inference on bare metal/host or a GPU server — the Lima VM is for the
 > *control plane and CPU workloads*, not the matmuls.
+
+---
+
+For definitions of terms such as HVF and KVM, see [`glossary.md`](./glossary.md).
+For deeper dives, see [`acceleration.md`](./acceleration.md) and [`rosetta.md`](./rosetta.md).

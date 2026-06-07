@@ -11,15 +11,15 @@
 #   ./devasthali.sh env       # print DOCKER_HOST line for the host docker CLI
 #
 # Override the instance name / config via env:
-#   LIMA_INSTANCE=docker-lima  LIMA_CONFIG=./docker-lima.yaml  ./devasthali.sh start
+#   LIMA_INSTANCE=lima-qemu-dockerd  LIMA_CONFIG=./lima-qemu-dockerd.yaml  ./devasthali.sh start
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
-LIMA_INSTANCE="${LIMA_INSTANCE:-docker-lima}"
-LIMA_CONFIG="${LIMA_CONFIG:-${SCRIPT_DIR}/docker-lima.yaml}"
+LIMA_INSTANCE="${LIMA_INSTANCE:-lima-qemu-dockerd}"
+LIMA_CONFIG="${LIMA_CONFIG:-${SCRIPT_DIR}/lima-qemu-dockerd.yaml}"
 
 err()  { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 info() { printf '\033[36m%s\033[0m\n' "$*"; }

@@ -1,15 +1,33 @@
-# Example to use Docker instead of containerd & nerdctl
-# $ limactl start ./docker-lima.yaml
-# $ limactl shell docker docker run -it -v $HOME:$HOME --rm alpine
-
+# Docker via Lima using Apple's Virtualization.framework (vz) backend
+# Requires: macOS 13 Ventura or later, Lima v0.14.0 or later
+#
+# Usage:
+# $ limactl start ./lima-vz-dockerd.yaml
+# $ limactl shell lima-vz-dockerd docker run -it -v $HOME:$HOME --rm alpine
+#
 # To run `docker` on the host (assumes docker-cli is installed):
-# $ export DOCKER_HOST=$(limactl list docker --format 'unix://{{.Dir}}/sock/docker.sock')
+# $ export DOCKER_HOST=$(limactl list lima-vz-dockerd --format 'unix://{{.Dir}}/sock/docker.sock')
 # $ docker ...
+#
+# Why vz over qemu?
+#   - Uses Apple Hypervisor.framework (HVF) natively — near-native CPU performance
+#     without the QEMU translation overhead.
+#   - Enables Virtio-fs (virtiofs) for mounts, which is significantly faster than
+#     the QEMU reverse-sshfs used by the qemu backend.
+#   - On Apple Silicon the guest arch matches the host (aarch64), so HVF runs
+#     guest instructions directly on the M-series cores with no emulation.
+#   - Lower memory overhead: no QEMU process sitting between macOS and the VM.
 
-# This example requires Lima v0.8.0 or later
+vmType: vz
+rosetta:
+  # Rosetta allows running x86_64 binaries inside the aarch64 VM (Apple Silicon only).
+  # Set to false if you don't need to pull/run amd64 container images.
+  enabled: true
+  binfmt: true
+
 images:
 # Ubuntu 24.04 LTS (Noble Numbat) — current stable LTS, supported until 2029 (ESM to 2036).
-# Try to use release-yyyyMMdd image if available. Note that release-yyyyMMdd will be removed after several months.
+# vz backend uses the same cloud images as qemu; Lima selects the correct arch automatically.
 - location: "https://cloud-images.ubuntu.com/releases/24.04/release-20260321/ubuntu-24.04-server-cloudimg-amd64.img"
   arch: "x86_64"
   digest: "sha256:5c3ddb00f60bc455dac0862fabe9d8bacec46c33ac1751143c5c3683404b110d"
@@ -23,20 +41,27 @@ images:
 - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
   arch: "aarch64"
 
+cpus: 4
+memory: "4GiB"
+disk: "100GiB"
+
+# virtiofs gives near-native file I/O throughput; only available with the vz backend.
+mountType: virtiofs
+
 mounts:
 - location: "~"
 - location: "/tmp/lima"
   writable: true
-# containerd is managed by Docker, not by Lima, so the values are set to false here.
+
+# containerd is managed by Docker, not by Lima, 
+## so the values are set to false here.
 containerd:
   system: false
   user: false
+
 provision:
 - mode: system
   # This script defines the host.docker.internal hostname when hostResolver is disabled.
-  # It is also needed for lima 0.8.2 and earlier, which does not support hostResolver.hosts.
-  # Names defined in /etc/hosts inside the VM are not resolved inside containers when
-  # using the hostResolver; use hostResolver.hosts instead (requires lima 0.8.3 or later).
   script: |
     #!/bin/sh
     sed -i 's/host.lima.internal.*/host.lima.internal host.docker.internal/' /etc/hosts
@@ -47,16 +72,10 @@ provision:
     command -v docker >/dev/null 2>&1 && exit 0
     export DEBIAN_FRONTEND=noninteractive
     curl -fsSL https://get.docker.com | sh
-    # NOTE: you may remove the lines below, if you prefer to use rootful docker, not rootless
-    systemctl disable --now docker
-    apt-get install -y uidmap dbus-user-session
-- mode: user
-  script: |
-    #!/bin/bash
-    set -eux -o pipefail
-    systemctl --user start dbus
-    dockerd-rootless-setuptool.sh install
-    docker context use rootless
+    # Add the Lima-injected user to the docker group so the forwarded socket is usable.
+    # LIMA_CIDATA_USER is set by Lima cloud-init and matches the macOS username.
+    usermod -aG docker "${LIMA_CIDATA_USER}"
+
 probes:
 - script: |
     #!/bin/bash
@@ -65,19 +84,20 @@ probes:
       echo >&2 "docker is not installed yet"
       exit 1
     fi
-    if ! timeout 30s bash -c "until pgrep rootlesskit; do sleep 3; done"; then
-      echo >&2 "rootlesskit (used by rootless docker) is not running"
+    if ! timeout 30s bash -c "until [ -S /var/run/docker.sock ]; do sleep 3; done"; then
+      echo >&2 "docker daemon socket not found at /var/run/docker.sock"
       exit 1
     fi
-  hint: See "/var/log/cloud-init-output.log". in the guest
+  hint: See "/var/log/cloud-init-output.log" in the guest
+
 hostResolver:
-  # hostResolver.hosts requires lima 0.8.3 or later. Names defined here will also
-  # resolve inside containers, and not just inside the VM itself.
   hosts:
     host.docker.internal: host.lima.internal
+
 portForwards:
-- guestSocket: "/run/user/{{.UID}}/docker.sock"
+- guestSocket: "/var/run/docker.sock"
   hostSocket: "{{.Dir}}/sock/docker.sock"
+
 message: |
   To run `docker` on the host (assumes docker-cli is installed), run the following commands:
   ------

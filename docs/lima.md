@@ -113,6 +113,8 @@ Apple Silicon; reach for **QEMU specifically when you must emulate a different a
 remote builder). This repo uses QEMU, so it is portable but pays the emulation tax if run on
 arm64 hosts.
 
+**See also:** [`acceleration.md`](./acceleration.md) · [`file-sharing.md`](./file-sharing.md) · [`rosetta.md`](./rosetta.md)
+
 ---
 
 ## 2.5 CPU architectures (x86_64 vs aarch64)
