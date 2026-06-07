@@ -18,8 +18,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
-LIMA_INSTANCE="${LIMA_INSTANCE:-lima-qemu-dockerd}"
-LIMA_CONFIG="${LIMA_CONFIG:-${SCRIPT_DIR}/lima-qemu-dockerd.yaml}"
+LIMA_CONFIG="${LIMA_CONFIG:-${SCRIPT_DIR}/lima-vz-dockerd.yaml}"
+LIMA_INSTANCE="${LIMA_INSTANCE:-$(basename "${LIMA_CONFIG}" .yaml)}"
 
 err()  { printf '\033[31m%s\033[0m\n' "$*" >&2; }
 info() { printf '\033[36m%s\033[0m\n' "$*"; }
