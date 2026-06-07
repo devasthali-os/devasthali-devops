@@ -10,6 +10,12 @@ x86_64 binary cannot run on an aarch64 CPU without emulation/translation, and vi
 single fact drives image selection, build strategy, and — increasingly — where your model
 inference actually runs.
 
+## Table of contents
+
+- [What each one is](#what-each-one-is)
+- [Shortcomings / gotchas of each](#shortcomings--gotchas-of-each)
+- [The LLM / ML-inference lens](#the-llm--ml-inference-lens)
+
 ## What each one is
 
 | | **x86_64 (amd64)** | **aarch64 (arm64)** |

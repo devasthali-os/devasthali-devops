@@ -5,6 +5,16 @@ Lima's `mounts:` directive exposes macOS host directories inside the Linux guest
 
 Referenced from [`lima.md`](./lima.md) and [`lima-qemu-dockerd.yaml`](../lima-qemu-dockerd.yaml).
 
+## Table of contents
+
+- [The two protocols](#the-two-protocols)
+  - [9p (Plan 9 Filesystem Protocol)](#9p-plan-9-filesystem-protocol)
+  - [virtiofs](#virtiofs)
+- [Performance comparison](#performance-comparison)
+- [Configuration](#configuration)
+- [When each matters](#when-each-matters)
+- [See also](#see-also)
+
 ---
 
 ## The two protocols

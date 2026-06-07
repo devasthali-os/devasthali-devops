@@ -1,9 +1,24 @@
-# LiMa + QEMU: A Principal Engineer's Reference
+# LiMa + VVM: A Principal Engineer's Reference
 
 This document is the in-depth companion to `lima-qemu-dockerd.yaml` in this repo. It explains
 *how LiMa and QEMU actually work under the hood*, the tradeoffs that matter at scale, and
 the operational/security reasoning a principal-level engineer is expected to articulate in
 design reviews. It is deliberately opinionated about *why*, not just *what*.
+
+## Table of contents
+
+- [0. The instance in this repo](#0-the-instance-in-this-repo)
+- [1. What Lima is (and is not)](#1-what-lima-is-and-is-not)
+- [2. QEMU: the layer that actually does the work](#2-qemu-the-layer-that-actually-does-the-work)
+- [2.5 CPU architectures (x86_64 vs aarch64)](#25-cpu-architectures-x86_64-vs-aarch64)
+- [3. Lifecycle & the control plane](#3-lifecycle--the-control-plane)
+- [4. Networking model (and why `host.docker.internal` exists)](#4-networking-model-and-why-hostdockerinternal-exists)
+- [5. Filesystem sharing — the second big performance lever](#5-filesystem-sharing--the-second-big-performance-lever)
+- [6. Provisioning, probes, and reproducibility](#6-provisioning-probes-and-reproducibility)
+- [7. Rootless Docker: the security posture](#7-rootless-docker-the-security-posture)
+- [8. Operating it: a practical debugging playbook](#8-operating-it-a-practical-debugging-playbook)
+- [9. Scaling considerations (the "at Meta" lens)](#9-scaling-considerations-the-at-meta-lens)
+- [10. One-paragraph summary for a design review](#10-one-paragraph-summary-for-a-design-review)
 
 ---
 

@@ -3,6 +3,16 @@
 Deep-dive companion to [`lima.md`](./lima.md) and [`cpu-architectures.md`](./cpu-architectures.md).
 Covers the three execution paths QEMU can take and what they mean for your Lima setup.
 
+## Table of contents
+
+- [The three paths](#the-three-paths)
+  - [HVF — Hypervisor.framework (macOS)](#hvf--hypervisorframework-macos)
+  - [KVM — Kernel-based Virtual Machine (Linux)](#kvm--kernel-based-virtual-machine-linux)
+  - [TCG — Tiny Code Generator (software emulation)](#tcg--tiny-code-generator-software-emulation)
+- [How Lima selects the path](#how-lima-selects-the-path)
+- [`vmType: qemu` vs `vmType: vz` and acceleration](#vmtype-qemu-vs-vmtype-vz-and-acceleration)
+- [See also](#see-also)
+
 ---
 
 ## The three paths

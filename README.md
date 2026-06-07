@@ -1,4 +1,9 @@
 
+## Table of contents
+
+- [Setup](#setup)
+- [Docs](#docs)
+
 ## Setup
 
 Install Python dependencies:

@@ -6,6 +6,16 @@ requires explicit configuration — and only works with `vmType: vz`.
 
 Referenced from [`lima.md`](./lima.md) and [`cpu-architectures.md`](./cpu-architectures.md).
 
+## Table of contents
+
+- [Why it matters in Lima](#why-it-matters-in-lima)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Running amd64 Docker images with Rosetta](#running-amd64-docker-images-with-rosetta)
+- [Rosetta vs QEMU TCG](#rosetta-vs-qemu-tcg)
+- [Limitations](#limitations)
+- [See also](#see-also)
+
 ---
 
 ## Why it matters in Lima

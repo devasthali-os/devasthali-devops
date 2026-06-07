@@ -6,6 +6,18 @@ It is active by default on Ubuntu (the OS used inside LiMa guests in this repo) 
 the primary host-side security layer that Docker, containerd, and Kubernetes rely on to
 harden containers beyond what namespaces and cgroups alone provide.
 
+## Table of contents
+
+- [0. Where AppArmor fits in the stack](#0-where-apparmor-fits-in-the-stack)
+- [1. Core concepts](#1-core-concepts)
+- [2. AppArmor and Docker](#2-apparmor-and-docker)
+- [3. AppArmor and Kubernetes](#3-apparmor-and-kubernetes)
+- [4. Writing a custom profile](#4-writing-a-custom-profile)
+- [5. Operational commands](#5-operational-commands)
+- [6. AppArmor vs. seccomp — complementary, not redundant](#6-apparmor-vs-seccomp--complementary-not-redundant)
+- [7. Interaction with Lima guests](#7-interaction-with-lima-guests)
+- [See also](#see-also)
+
 ---
 
 ## 0. Where AppArmor fits in the stack
