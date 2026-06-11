@@ -128,7 +128,7 @@ Apple Silicon; reach for **QEMU specifically when you must emulate a different a
 remote builder). This repo uses QEMU, so it is portable but pays the emulation tax if run on
 arm64 hosts.
 
-**See also:** [`acceleration.md`](./acceleration.md) · [`file-sharing.md`](./file-sharing.md) · [`rosetta.md`](./rosetta.md)
+**See also:** [`acceleration.md`](./acceleration.md) · [`container-security.md`](./container-security.md) · [`file-sharing.md`](./file-sharing.md) · [`rosetta.md`](./rosetta.md)
 
 ---
 
@@ -304,6 +304,9 @@ The config deliberately runs **rootless dockerd** (disables the rootful daemon, 
 - **Defense in depth here:** the daemon is unprivileged *and* the whole thing is inside a VM, so
   even a daemon compromise is contained to the guest, not the macOS host. This layered model
   (rootless-in-VM) is the strongest reason to prefer Lima over running Docker natively.
+- Outer layers do not remove the need to harden individual containers. See
+  [`container-security.md`](./container-security.md) for caps, seccomp, read-only rootfs, and the
+  design-review checklist.
 
 ---
 

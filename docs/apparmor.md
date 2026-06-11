@@ -53,6 +53,25 @@ An AppArmor **profile** is a text file that describes what a single program bina
 allowed to do. Profiles are stored in `/etc/apparmor.d/` and identified by the absolute
 path of the confined executable (e.g. `/usr/sbin/nginx`).
 
+```bash
+## on LiMa guest
+prayagupa@lima-lima-qemu-dockerd:/Users/prayagupa$ ls -l /etc/apparmor.d/
+total 472
+-rw-r--r-- 1 root root   354 Aug 15  2025 1password
+-rw-r--r-- 1 root root   352 Aug 15  2025 Discord
+-rw-r--r-- 1 root root   386 Aug 15  2025 MongoDB_Compass
+-rw-r--r-- 1 root root   404 Aug 15  2025 QtWebEngineProcess
+drwxr-xr-x 2 root root  4096 Mar 21 09:14 abi
+drwxr-xr-x 4 root root  4096 Mar 21 09:14 abstractions
+-rw-r--r-- 1 root root   374 Aug 15  2025 balena-etcher
+-rw-r--r-- 1 root root   348 Aug 15  2025 brave
+-rw-r--r-- 1 root root   342 Aug 15  2025 buildah
+-rw-r--r-- 1 root root   342 Aug 15  2025 busybox
+.
+.
+.
+```
+
 A profile specifies:
 
 | Resource type | Example rule |
@@ -277,7 +296,11 @@ already-running process can touch. Both should be active; neither replaces the o
 ## 7. Interaction with Lima guests
 
 Lima's Ubuntu guests **ship with AppArmor enabled** (`/sys/module/apparmor/parameters/enabled = Y`).
-The Docker provisioner installed by `docker-lima.yaml` inherits this — so `docker-default`
+```bash
+cat /sys/module/apparmor/parameters/enabled 
+Y
+```
+The Docker provisioner installed by `lima-qemu-dockerd.yaml` inherits this — so `docker-default`
 is loaded and applied to every container run inside the VM.
 
 Key operational notes:
@@ -288,7 +311,7 @@ Key operational notes:
   are logged in the guest's `journalctl -k`.
 
 - Custom profiles you load inside the Lima guest are **ephemeral** unless you add a
-  provisioning step (Lima `provision:` scripts in `docker-lima.yaml`) to reload them
+  provisioning step (Lima `provision:` scripts in `lima-qemu-dockerd.yaml`) to reload them
   on VM restart. `/etc/apparmor.d/` contents persist on the disk image, but the kernel
   cache is rebuilt at boot — `apparmor_parser` must run again.
 
@@ -300,6 +323,7 @@ Key operational notes:
 
 ## See also
 
+- [`container-security.md`](./container-security.md) — full runtime hardening checklist (caps, seccomp, read-only rootfs)
 - [`glossary.md`](./glossary.md) — definitions for HVF, KVM, TCG
 - [`lima.md`](./lima.md) — how the Lima VM guest is structured
 - [`acceleration.md`](./acceleration.md) — VM execution paths (HVF / KVM / TCG)
