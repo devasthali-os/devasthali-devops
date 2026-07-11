@@ -15,6 +15,7 @@ pip install -r requirements.txt
 ## Docs
 
 - [Lima + QEMU reference](docs/lima.md) — in-depth guide to `lima-qemu-dockerd.yaml`, QEMU internals, and operational tradeoffs
+- [Installing Docker on Windows](docs/docker-windows.md) — WSL 2 vs Hyper-V, Docker Desktop vs alternatives, performance and resource limits
 - [Container security](docs/container-security.md) — hardening Docker containers at build and runtime
 - [AppArmor](docs/apparmor.md) — LSM profiles for Docker and Kubernetes
 - [CPU Architectures](docs/cpu-architectures.md) — x86_64 vs aarch64 explained
