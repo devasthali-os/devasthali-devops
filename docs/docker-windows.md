@@ -136,6 +136,58 @@ dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux 
 dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 ```
 
+### 3.1 "WSL has no installed distributions" / reboot required
+
+Two closely related states trip people up on a fresh machine. Both are normal and expected —
+they are not errors in your setup.
+
+**A. `wsl --list --verbose` reports no distributions:**
+
+```text
+Windows Subsystem for Linux has no installed distributions.
+Use 'wsl --list --online' to list available distributions
+and 'wsl --install <Ubuntu-26.04>' to install.
+```
+
+The WSL *engine* is present but no Linux distro is installed yet. List what's available, then
+install one (Ubuntu is the sensible default):
+
+```powershell
+wsl --list --online     # see installable distros
+wsl --install Ubuntu    # download + install Ubuntu
+```
+
+**B. "The requested operation requires elevation" followed by "Changes will not be effective
+until the system is rebooted":**
+
+```text
+The requested operation requires elevation.
+...
+The operation completed successfully.
+The requested operation is successful. Changes will not be effective until the system is rebooted.
+```
+
+On a first install, `wsl --install` enables the *Virtual Machine Platform* / *WSL* Windows
+features, and those features only activate after a reboot. Do this:
+
+1. **Reboot Windows.** This is mandatory — the newly enabled features are inactive until you do.
+2. After reboot, re-run the install in an **elevated (Administrator) PowerShell**:
+
+   ```powershell
+   wsl --install Ubuntu
+   ```
+
+3. Ubuntu finishes installing and launches, prompting you to create a **UNIX username and
+   password**. Type the password directly into the terminal — it will not echo as you type.
+4. Confirm it registered on version 2:
+
+   ```powershell
+   wsl --list --verbose        # STATE Running/Stopped, VERSION 2
+   ```
+
+> If `wsl --install` still reports it "requires elevation," you are not in an Administrator
+> shell. Right-click PowerShell → **Run as administrator** and try again.
+
 ## 4. Installing Docker Desktop
 
 1. Download Docker Desktop for Windows from the official Docker site (`docker.com`). Do not use
@@ -333,6 +385,8 @@ Common failure modes and the first thing to check:
 | Cannot reach host service from container | Using wrong hostname | Use `host.docker.internal` (§8) |
 | Port not reachable from Windows | localhost forwarding / not published | Publish with `-p`, confirm `localhostForwarding=true` |
 | Virtualization errors on install | VT-x/AMD-V disabled, or hypervisor conflict | Enable virtualization in BIOS; check third-party hypervisors |
+| "WSL has no installed distributions" | Engine present, no distro installed | `wsl --install Ubuntu` (§3.1) |
+| "Changes will not be effective until reboot" | Install enabled WSL/VM Platform features | Reboot, then re-run `wsl --install Ubuntu` as admin (§3.1) |
 
 Quick health check:
 
