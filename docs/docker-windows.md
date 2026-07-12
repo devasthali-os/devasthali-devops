@@ -23,6 +23,7 @@ run once Docker is installed, see [`container-security.md`](./container-security
 - [9. Security posture](#9-security-posture)
 - [10. Operational playbook](#10-operational-playbook)
 - [11. Design-review checklist](#11-design-review-checklist)
+- [12. Using WSL as your dev environment](#12-using-wsl-as-your-dev-environment)
 - [See also](#see-also)
 
 ---
@@ -409,6 +410,63 @@ docker version
 - [ ] `docker` group membership limited to trusted users (root-equivalent).
 - [ ] Update path in place: `wsl --update` + engine/Desktop updates on.
 - [ ] Container-level hardening followed per `container-security.md`.
+
+## 12. Using WSL as your dev environment
+
+Once WSL 2 is running, the sane workflow is to treat the Ubuntu distro as your *primary*
+development box and Windows as just the window manager. A few facts make this click:
+
+- **WSL Ubuntu is a fresh, separate Linux install.** Tools installed on Windows are **not**
+  visible inside Ubuntu, and vice versa. You install your toolchain *inside* WSL with `apt`.
+- **`~` is different in each world.** In PowerShell, `~` = `C:\Users\you`. In WSL, `~` =
+  `/home/you`. Running `mkdir ~/foo` in PowerShell makes a *Windows* folder, not a Linux one.
+- **Keep code under `~` (any folder name), never `/mnt/c`.** The folder name (`~/dev`, `~/code`,
+  `~/rai-linux`, …) is pure taste; what matters is that it lives on the Linux ext4 filesystem for
+  fast native I/O (see §6).
+
+### Launch straight into WSL (skip typing `wsl` every time)
+
+- **Windows Terminal:** `Ctrl+,` → **Startup → Default profile → Ubuntu**. New windows open
+  directly in WSL.
+- **Ubuntu app:** the distro adds an *Ubuntu* entry to the Start menu — pin it to the taskbar; it
+  opens in your Linux `$HOME`.
+- **Shortcut / command:** `wsl ~` forces the shell to start in your Linux home rather than
+  inheriting PowerShell's `/mnt/c/...` directory.
+
+### First-time bootstrap (run once, inside WSL)
+
+The Ubuntu base image ships `bash`, core utils, `apt`, and usually `python3`. Install the rest as
+needed — it persists across sessions, so you do **not** reinstall each login:
+
+```bash
+sudo apt update && sudo apt upgrade -y            # always first
+sudo apt install -y git build-essential python3-venv python3-pip
+
+# Node via nvm (better version control than apt)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# reopen the shell, then:
+nvm install --lts
+
+# Docker: enable Docker Desktop's WSL integration (§4), or install Docker CE in-distro (§5)
+```
+
+### Daily loop
+
+```bash
+# Open Windows Terminal (default profile = Ubuntu) → you're already in WSL
+cd ~/rai-linux/project
+code .                # VS Code WSL remote — editor runs Linux-side
+docker compose up     # or npm run dev, pytest, … all Linux-native
+```
+
+### Mental model
+
+| | Windows side | WSL / Ubuntu side |
+|---|---|---|
+| Package manager | winget / installers | `apt` |
+| Dev toolchain | keep off | **install here** |
+| `~` resolves to | `C:\Users\you` | `/home/you` |
+| Where code lives | avoid (`/mnt/c` = slow) | ✅ `~/...` (fast ext4) |
 
 ## See also
 
