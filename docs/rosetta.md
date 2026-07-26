@@ -99,6 +99,13 @@ The alternative to Rosetta for running amd64 binaries is `vmType: qemu` with `ar
 QEMU TCG only when you need exact x86_64 hardware behaviour (e.g., reproducing a specific
 SIMD edge case or testing CPU-instruction-sensitive code).
 
+> **Windows / WSL 2 note.** There is no first-party Rosetta equivalent inside **WSL 2**. On
+> Windows on Arm, the OS provides x64 emulation for *Windows* apps, but a WSL 2 Linux distro
+> runs at the host's native arch; to execute foreign-arch Linux binaries you register
+> `binfmt_misc` + `qemu-user-static` yourself (the same user-mode QEMU that backs
+> `docker buildx` multi-arch builds) — closer to Lima's QEMU path than to Rosetta. See
+> [`docker-windows.md`](./docker-windows.md).
+
 ---
 
 ## Limitations
@@ -119,4 +126,5 @@ SIMD edge case or testing CPU-instruction-sensitive code).
 
 - [`cpu-architectures.md`](./cpu-architectures.md) — binary gap, weak memory ordering, LLM inference placement
 - [`acceleration.md`](./acceleration.md) — HVF vs KVM vs TCG performance paths
+- [`docker-windows.md`](./docker-windows.md) — WSL 2 on Windows, and its arch/emulation model
 - [`lima.md`](./lima.md) — full QEMU vs `vz` comparison table

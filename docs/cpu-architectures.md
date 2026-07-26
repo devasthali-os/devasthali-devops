@@ -22,7 +22,7 @@ inference actually runs.
 |--|--------------------|---------------------|
 | Origin | Intel/AMD, 64-bit extension of x86 (2003) | ARM 64-bit (ARMv8-A, 2011) |
 | ISA style | CISC — variable-length, complex instructions, microcoded | RISC — fixed-length, simpler, load/store |
-| Typical hosts | Intel Macs, most cloud VMs, gaming/desktop, on-prem servers | Apple Silicon (M1–M4), AWS Graviton, Ampere, Azure Cobalt, phones, Raspberry Pi |
+| Typical hosts | Intel Macs, most Windows PCs, most cloud VMs, gaming/desktop, on-prem servers | Apple Silicon (M1–M4), Windows on Arm (Snapdragon X), AWS Graviton, Ampere, Azure Cobalt, phones, Raspberry Pi |
 | Lima image here | `ubuntu-24.04-server-cloudimg-amd64.img` | `ubuntu-24.04-server-cloudimg-arm64.img` |
 | Native acceleration | HVF on Intel mac, KVM (VT-x) on Linux | HVF / `vz` on Apple Silicon, KVM on arm servers |
 | Memory model | Strong (TSO) — fewer surprises in lock-free code | Weak/relaxed — needs explicit barriers; races surface here that hid on x86 |
@@ -52,6 +52,13 @@ inference actually runs.
   different feature levels (SVE width, crypto extensions). Feature detection matters more.
 - **Tooling assumptions.** Build scripts, CI runners, and `Dockerfile`s that hardcode `amd64`
   download URLs silently break.
+
+> **WSL 2 vs Lima on arch.** Windows's **WSL 2** always runs the Linux distro at the *host's
+> native* arch on the Windows Hypervisor Platform — x86_64 on a typical PC, aarch64 on Windows
+> on Arm — and offers **no** cross-arch whole-VM emulation. There is no WSL equivalent of the
+> `arch: x86_64`-on-Apple-Silicon TCG trap; to run foreign-arch binaries you opt in explicitly
+> with `binfmt_misc` + `qemu-user-static` (the `docker buildx` path). See
+> [`docker-windows.md`](./docker-windows.md).
 
 ## The LLM / ML-inference lens
 
@@ -86,5 +93,6 @@ This is where the arch choice stops being academic for an AI-heavy org:
 
 ---
 
-For definitions of terms such as HVF and KVM, see [`glossary.md`](./glossary.md).
+For definitions of terms such as HVF, KVM, and WSL, see [`glossary.md`](./glossary.md).
 For deeper dives, see [`acceleration.md`](./acceleration.md) and [`rosetta.md`](./rosetta.md).
+For the Windows/WSL 2 equivalent of the Lima model, see [`docker-windows.md`](./docker-windows.md).

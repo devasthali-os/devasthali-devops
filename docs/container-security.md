@@ -3,7 +3,7 @@
 How to harden a Docker container at runtime and at build time. This document assumes you are
 running workloads inside the **Lima guest** provisioned by `lima-qemu-dockerd.yaml` (Ubuntu +
 rootless dockerd), but every `docker run` flag and pattern here applies on any Linux host with
-Docker Engine.
+Docker Engine — including a **WSL 2** distro on Windows (see [`docker-windows.md`](./docker-windows.md)).
 
 For AppArmor profile mechanics, see [`apparmor.md`](./apparmor.md). For why the daemon itself
 runs unprivileged inside a VM, see [Rootless Docker in `lima.md`](./lima.md#7-rootless-docker-the-security-posture).
@@ -32,8 +32,8 @@ inside it:
 
 ```mermaid
 flowchart TB
-  subgraph macos["macOS host — no direct container kernel access"]
-    subgraph lima["Lima guest VM (Ubuntu) — AppArmor enabled · own kernel · own disk"]
+  subgraph host["macOS host (or Windows host with WSL 2) — no direct container kernel access"]
+    subgraph lima["Lima guest VM · WSL 2 distro (Ubuntu) — AppArmor enabled · own kernel · own disk"]
       subgraph dockerd["dockerd (rootless in this repo) — socket access ≠ host root; daemon runs in user namespace"]
         subgraph runc["Container runtime (runc) — user namespace · seccomp · AppArmor · dropped caps"]
           app["Your application process"]
@@ -44,7 +44,8 @@ flowchart TB
 ```
 
 Each layer shrinks blast radius. A hardened container inside rootless dockerd inside a Lima VM
-is materially safer than `--privileged` on a rootful daemon on bare metal — but **no layer
+(or a **WSL 2** distro on Windows, itself a Linux VM on the Windows Hypervisor Platform) is
+materially safer than `--privileged` on a rootful daemon on bare metal — but **no layer
 replaces the others**. Harden the container itself regardless of outer wrappers.
 
 ---
@@ -430,6 +431,7 @@ Use this as a gate before merging a container spec:
 
 - [`apparmor.md`](./apparmor.md) — AppArmor profiles, `docker-default`, custom profiles
 - [`lima.md`](./lima.md) — rootless dockerd inside a VM, blast-radius reasoning
+- [`docker-windows.md`](./docker-windows.md) — the WSL 2 equivalent on Windows, and its security posture
 - [`file-sharing.md`](./file-sharing.md) — when bind-mounting macOS paths is a dev-only pattern
 - [Docker Engine security](https://docs.docker.com/engine/security/)
 - [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)

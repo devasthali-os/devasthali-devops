@@ -11,6 +11,7 @@ Covers the three execution paths QEMU can take and what they mean for your Lima 
   - [TCG — Tiny Code Generator (software emulation)](#tcg--tiny-code-generator-software-emulation)
 - [How Lima selects the path](#how-lima-selects-the-path)
 - [`vmType: qemu` vs `vmType: vz` and acceleration](#vmtype-qemu-vs-vmtype-vz-and-acceleration)
+- [Windows: WSL 2 and the Windows Hypervisor Platform (WHP)](#windows-wsl-2-and-the-windows-hypervisor-platform-whp)
 - [See also](#see-also)
 
 ---
@@ -94,10 +95,34 @@ cross-arch emulation (TCG) or when running on Linux (KVM).
 
 ---
 
+## Windows: WSL 2 and the Windows Hypervisor Platform (WHP)
+
+On Windows the same job is done by **WSL 2**, which runs a Microsoft-built Linux kernel on the
+**Windows Hypervisor Platform (WHP)** — the Hyper-V-based accelerator that is the Windows analog
+of HVF (macOS) and KVM (Linux). Docker Desktop's WSL 2 backend, and Docker CE installed directly
+in a WSL 2 distro, both run on this layer. See [`docker-windows.md`](./docker-windows.md).
+
+Key difference from Lima + QEMU: **WSL 2 has no cross-arch (TCG) mode.** It always runs the
+distro at the host's native architecture:
+
+| Host arch | WSL 2 guest arch | Accelerator | Cross-arch emulation |
+|-----------|------------------|-------------|----------------------|
+| x86_64 | x86_64 | WHP (Hyper-V) | none — native only |
+| aarch64 (Windows on Arm) | aarch64 | WHP (Hyper-V) | none — native only |
+
+To run *foreign*-arch binaries inside WSL 2 you register an emulator explicitly (`binfmt_misc` +
+`qemu-user-static`, the same user-mode QEMU trick used for `docker buildx` multi-arch builds) —
+WSL never silently drops into a slow whole-VM TCG path the way an `arch: x86_64` Lima guest on
+Apple Silicon does. That makes the "am I accidentally emulating?" performance cliff a
+macOS/Lima concern, not a WSL one.
+
+---
+
 ## See also
 
-- [`glossary.md`](./glossary.md) — definitions of HVF and KVM
+- [`glossary.md`](./glossary.md) — definitions of HVF, KVM, WHP/Hyper-V, and WSL
 - [`file-sharing.md`](./file-sharing.md) — how the mount protocol interacts with backend choice
 - [`rosetta.md`](./rosetta.md) — running amd64 binaries in an arm64 guest without TCG
 - [`lima.md`](./lima.md) — QEMU vs `vz` comparison table and full Lima reference
+- [`docker-windows.md`](./docker-windows.md) — WSL 2 + WHP, the Windows equivalent
 - [`cpu-architectures.md`](./cpu-architectures.md) — arch performance cliff and the LLM inference lens

@@ -34,18 +34,15 @@ There is no native Windows Docker daemon for Linux containers. When you run `doc
 on Windows, the container executes inside a **Linux VM**, and the `docker` CLI on Windows is
 just a client talking to a daemon inside that VM over a socket or named pipe.
 
-```
-┌─────────────────────────────────────────────┐
-│  Windows host                                │
-│                                              │
-│   docker CLI  ──(named pipe / TCP)──┐        │
-│                                     │        │
-│   ┌─────────────────────────────────▼─────┐  │
-│   │  Lightweight Linux VM (WSL 2 / Hyper-V)│  │
-│   │     dockerd  +  containerd  +  runc    │  │
-│   │     your containers run HERE           │  │
-│   └────────────────────────────────────────┘  │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  subgraph win["Windows host"]
+    cli["docker CLI"]
+    subgraph vm["Lightweight Linux VM (WSL 2 / Hyper-V)"]
+      daemon["dockerd + containerd + runc — your containers run HERE"]
+    end
+    cli -->|"named pipe / TCP"| daemon
+  end
 ```
 
 Two consequences follow from this, and almost every Windows-Docker problem traces back to one

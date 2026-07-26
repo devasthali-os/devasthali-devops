@@ -13,6 +13,7 @@ Referenced from [`lima.md`](./lima.md) and [`lima-qemu-dockerd.yaml`](../lima-qe
 - [Performance comparison](#performance-comparison)
 - [Configuration](#configuration)
 - [When each matters](#when-each-matters)
+- [The WSL 2 parallel on Windows](#the-wsl-2-parallel-on-windows)
 - [See also](#see-also)
 
 ---
@@ -109,7 +110,26 @@ mounts:
 
 ---
 
+## The WSL 2 parallel on Windows
+
+Windows's **WSL 2** has the exact same "native vs cross-boundary" performance split as Lima —
+just with different names:
+
+| Lima (macOS) | WSL 2 (Windows) |
+|--------------|-----------------|
+| Guest's own ext4 on `virtio-blk` (fast) | Distro's own ext4 in `ext4.vhdx` (fast) |
+| `~` shared over **9p** (slow) / **virtiofs** (fast) | `C:\` mounted at `/mnt/c` over the **9P** protocol / `drvfs` (slow) |
+| `host.lima.internal` | `host.docker.internal` |
+
+The takeaway is identical on both platforms: **keep hot, I/O-heavy directories (source trees,
+`.git`, `node_modules`, virtualenvs, build caches) on the guest's native Linux filesystem**, not
+on the shared host mount. On WSL 2 that means working under `~` inside the distro, never under
+`/mnt/c/...`. See [Performance in `docker-windows.md`](./docker-windows.md#6-performance-where-files-live-matters-most).
+
+---
+
 ## See also
 
 - [`lima.md`](./lima.md) — full QEMU vs `vz` comparison and Lima reference
+- [`docker-windows.md`](./docker-windows.md) — the WSL 2 `/mnt/c` vs ext4 equivalent on Windows
 - [`acceleration.md`](./acceleration.md) — how the VM backend affects overall performance

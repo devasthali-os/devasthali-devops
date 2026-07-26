@@ -2,9 +2,10 @@
 
 AppArmor ("Application Armor") is a Linux kernel Security Module (LSM) that enforces
 **Mandatory Access Control (MAC)** by confining programs to a defined set of resources.
-It is active by default on Ubuntu (the OS used inside LiMa guests in this repo) and is
-the primary host-side security layer that Docker, containerd, and Kubernetes rely on to
-harden containers beyond what namespaces and cgroups alone provide.
+It is active by default on Ubuntu (the OS used inside Lima guests on macOS in this repo,
+and inside **WSL 2** distros on Windows) and is the primary host-side security layer that
+Docker, containerd, and Kubernetes rely on to harden containers beyond what namespaces and
+cgroups alone provide.
 
 ## Table of contents
 
@@ -16,32 +17,29 @@ harden containers beyond what namespaces and cgroups alone provide.
 - [5. Operational commands](#5-operational-commands)
 - [6. AppArmor vs. seccomp — complementary, not redundant](#6-apparmor-vs-seccomp--complementary-not-redundant)
 - [7. Interaction with Lima guests](#7-interaction-with-lima-guests)
+- [8. Threats and limitations of relying on AppArmor](#8-threats-and-limitations-of-relying-on-apparmor)
 - [See also](#see-also)
 
 ---
 
 ## 0. Where AppArmor fits in the stack
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  Container / Pod                                         │
-│    process (nginx, sidecar, …)                           │
-├──────────────────────────────────────────────────────────┤
-│  Container runtime (runc / crun)                         │
-│    applies seccomp filter + AppArmor profile at exec()   │
-├──────────────────────────────────────────────────────────┤
-│  Linux kernel                                            │
-│    LSM hook intercepts every syscall that touches a      │
-│    labeled resource (file, socket, capability, …)        │
-│    → profile allows / denies / logs the access           │
-├──────────────────────────────────────────────────────────┤
-│  Lima guest OS (Ubuntu)  ←  where AppArmor lives         │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  subgraph guest["Lima guest (macOS) · WSL 2 distro (Windows) — Ubuntu, where AppArmor lives"]
+    subgraph kernel["Linux kernel — LSM hook intercepts every syscall touching a labeled resource (file, socket, capability, …) → allows / denies / logs the access"]
+      subgraph runtime["Container runtime (runc / crun) — applies seccomp filter + AppArmor profile at exec()"]
+        pod["Container / Pod — process (nginx, sidecar, …)"]
+      end
+    end
+  end
 ```
 
-AppArmor operates **inside the Lima VM guest**, not on the macOS host. The macOS host has
-no AppArmor (it uses its own TCC / SIP / mandatory sandbox frameworks). Everything below
-assumes you are working inside a Lima guest or a Linux host directly.
+AppArmor operates **inside the Linux guest** — the Lima VM on macOS, or the **WSL 2** distro
+on Windows — not on the macOS or Windows host itself. On macOS the host has no AppArmor (it
+uses its own TCC / SIP / mandatory sandbox frameworks); on Windows the host uses its own
+security model. Everything below assumes you are working inside a Lima guest, a WSL 2 distro,
+or a Linux host directly.
 
 ---
 
@@ -96,6 +94,8 @@ Check the mode of any profile:
 
 ```bash
 aa-status          # summary of all loaded profiles and their modes
+# apparmor module is loaded.
+# apparmor filesystem is not mounted.
 cat /sys/kernel/security/apparmor/profiles   # kernel-level view
 ```
 
@@ -151,10 +151,12 @@ docker run --security-opt apparmor=my-custom-profile …
 
 ## 3. AppArmor and Kubernetes
 
-Kubernetes applies AppArmor profiles at the Pod / container level via annotations
-(pre-1.30) or the `securityContext.appArmorProfile` field (GA in 1.30+).
+Kubernetes applies AppArmor profiles at the Pod / container level via the
+`securityContext.appArmorProfile` field, **GA since Kubernetes 1.30**. (The older
+`container.apparmor.security.beta.kubernetes.io/*` annotation API is deprecated — use the
+field on 1.30+.)
 
-### 1.30+ field API (preferred)
+### The `appArmorProfile` field (GA 1.30+)
 
 ```yaml
 securityContext:
@@ -165,19 +167,9 @@ securityContext:
     # type: Unconfined       # no confinement — avoid in production
 ```
 
-### Pre-1.30 annotation API (still accepted)
-
-```yaml
-metadata:
-  annotations:
-    container.apparmor.security.beta.kubernetes.io/<container-name>: runtime/default
-    # or: localhost/<profile-name>
-    # or: unconfined
-```
-
 ### Node prerequisite
 
-The profile **must be loaded on every node** that can schedule the Pod. Use a DaemonSet
+The profile **must be loaded on every k8s node** that can schedule the Pod. Use a DaemonSet
 or a node provisioning step (cloud-init, Ansible, etc.) to push and load custom profiles:
 
 ```bash
@@ -319,6 +311,37 @@ Key operational notes:
   the same Ubuntu guest kernel, so AppArmor behavior is identical regardless of which
   `vmType` you choose.
 
+- **Windows / WSL 2 parallel.** The same model applies to Docker under **WSL 2** on Windows:
+  AppArmor lives inside the WSL 2 Linux distro (Ubuntu, or Docker Desktop's managed
+  `docker-desktop` distro), never on the Windows host. Profiles are loaded with
+  `apparmor_parser` inside the distro and — exactly like Lima — the kernel cache is rebuilt at
+  boot, so a `wsl --shutdown`/restart drops any profile that a startup step does not re-apply.
+  See [`docker-windows.md`](./docker-windows.md).
+
+---
+
+## 8. Threats and limitations of relying on AppArmor
+
+AppArmor is **defense-in-depth, not a hard security boundary**. It raises the cost of an attack
+and shrinks what a compromised process can touch, but several failure modes silently erode or
+eliminate that protection. Know them before you count on it.
+
+| Threat / limitation | Why it matters | Mitigation |
+|---------------------|----------------|------------|
+| **Path-based, not label-based** | Rules match pathnames, so hard links, bind mounts, symlinks, and `/proc/<pid>/fd/` aliasing can route around a rule; moving or renaming a confined binary can drop its profile entirely. | Deny rename/link vectors in the profile, keep the rootfs read-only ([`container-security.md`](./container-security.md)); use SELinux (inode labels) where that bypass class is unacceptable. |
+| **Only what the profile names is constrained** | Uncovered paths default to allow. Coarse profiles like `docker-default` are deliberately loose at the file level and give a false sense of coverage. | Write tight per-workload profiles (§4); treat `docker-default` as a floor, not a ceiling; pair with seccomp (§6). |
+| **Mode is silently defeatable** | `complain` logs but allows; `unconfined`, `--privileged`, or a profile that never loaded means **zero** enforcement — with no error surfaced to the workload. | Verify `aa-status` and `docker inspect --format '{{.AppArmorProfile}}'` in CI; forbid `apparmor=unconfined` and `--privileged` in review. |
+| **Ephemeral profiles drift to unconfined** | The kernel cache is rebuilt at boot; after a reboot / `wsl --shutdown` a custom profile that isn't re-applied leaves the workload unconfined. | Load profiles from a provisioning step (cloud-init, DaemonSet, Lima `provision:`); alert on unexpected `unconfined`. |
+| **Not a kernel-exploit boundary** | AppArmor is an in-kernel LSM; a kernel bug — or a syscall the profile cannot express — bypasses it. It cannot contain a kernel-level compromise. | Layer with seccomp, user namespaces, and a VM/microVM boundary for untrusted code; keep the guest kernel patched. |
+| **Availability risk → the "unconfined" escape hatch** | An over-tight profile breaks the app with silent `EACCES`/`EPERM`; the tempting fix is to disable confinement globally, losing all protection. | Diagnose the specific denial in `journalctl -k` and allow it narrowly; never blanket-`unconfined` (§2, §5). |
+| **Privileged actors can unload it** | Replacing or unloading a profile needs `CAP_MAC_ADMIN` in the initial namespace; root on the host/guest can `aa-disable` or swap a profile. | Protect the host/guest boundary; restrict who can run `apparmor_parser`/`aa-*`; audit profile changes. |
+| **Distro / portability gap** | AppArmor is Ubuntu/Debian/SUSE only; RHEL, Amazon Linux, and Azure Linux use SELinux — the same profile-based control simply is not present. | Do not assume AppArmor exists across a multi-cloud fleet; map controls per distro and bake them into the image. |
+
+> **Design rule:** Treat AppArmor as one layer in a stack (seccomp + dropped caps + read-only
+> rootfs + user namespaces + VM isolation), never as the sole control. The most common real-world
+> failure is not a clever bypass — it is a profile weakened to `unconfined` to make an app work,
+> or one that silently stopped loading. Verify enforcement; do not assume it.
+
 ---
 
 ## See also
@@ -326,6 +349,7 @@ Key operational notes:
 - [`container-security.md`](./container-security.md) — full runtime hardening checklist (caps, seccomp, read-only rootfs)
 - [`glossary.md`](./glossary.md) — definitions for HVF, KVM, TCG
 - [`lima.md`](./lima.md) — how the Lima VM guest is structured
+- [`docker-windows.md`](./docker-windows.md) — the WSL 2 equivalent on Windows
 - [`acceleration.md`](./acceleration.md) — VM execution paths (HVF / KVM / TCG)
 - [AppArmor kernel docs](https://www.kernel.org/doc/html/latest/admin-guide/LSM/apparmor.html)
 - [Docker AppArmor security profiles](https://docs.docker.com/engine/security/apparmor/)

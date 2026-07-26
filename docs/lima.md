@@ -54,22 +54,27 @@ Rancher Desktop's VM mode.
 
 Lima is **not** a hypervisor and **not** a container runtime. It is glue:
 
-```
-limactl (Go CLI / control plane)
-   │  writes config, manages lifecycle, owns the SSH tunnel
-   ▼
-QEMU  or  Virtualization.framework (vz)   ← the actual hypervisor
-   │
-   ▼
-Linux guest (cloud-init'd Ubuntu image)
-   │  cloud-init + Lima "provision" scripts install Docker, etc.
-   ▼
-containerd / dockerd / your workload
+```mermaid
+flowchart TB
+  limactl["limactl (Go CLI / control plane)"]
+  hypervisor["QEMU or Virtualization.framework (vz) — the actual hypervisor"]
+  guest["Linux guest (cloud-init'd Ubuntu image)"]
+  workload["containerd / dockerd / your workload"]
+
+  limactl -->|"writes config, manages lifecycle, owns the SSH tunnel"| hypervisor
+  hypervisor --> guest
+  guest -->|"cloud-init + Lima provision scripts install Docker, etc."| workload
 ```
 
 Mental model: **Lima is to local Linux VMs what Vagrant was to VirtualBox** — declarative,
 reproducible, disposable — but purpose-built for the container-dev workflow and the
 macOS+Apple-Silicon era.
+
+> **Windows analog:** Lima is to macOS what **WSL 2** is to Windows — both run a real Linux VM
+> that hosts the Docker daemon, share the host filesystem into the guest, and forward
+> ports/sockets back to the host. The closest match is Lima with `vmType: vz` (native-arch,
+> virtiofs), not the cross-arch `qemu` setup this repo ships. See
+> [`docker-windows.md`](./docker-windows.md).
 
 ### Why it exists
 Docker Desktop is a proprietary product with licensing costs for large orgs. Lima (Apache-2.0)
@@ -225,6 +230,11 @@ hostResolver:
 For higher-fidelity networking (stable guest IPs, guest reachable from host, multiple VMs on a
 shared L2) Lima supports **`socket_vmnet`** (`networks:` stanza) — relevant when you need the
 VM to look like a real host on the LAN.
+
+> **WSL 2 parallel:** Windows solves the same host↔guest reachability problem with
+> `localhostForwarding` (published container ports appear on the Windows `localhost`) and the
+> same `host.docker.internal` DNS name for reaching the host from a container. See
+> [Networking model in `docker-windows.md`](./docker-windows.md#8-networking-model).
 
 ---
 
